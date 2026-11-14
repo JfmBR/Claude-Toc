@@ -137,7 +137,7 @@ A primeira regra que bloquear encerra o fluxo.
 
 | Campo | Conteúdo | Exemplo |
 |---|---|---|
-| `topic` | Opção `ntfy_topic` | `toc-joao-8f3k2m9q` |
+| `topic` | Opção `ntfy_topic` | `toc-3f9a1c7e5b2d4f60` |
 | `title` | Tipo + projeto | `Terminou · padaria-app` |
 | `message` | Linha 1: duração e computador. Linha 2: detalhe | `4 min 32 s · NOTEBOOK`<br>`…e os testes passaram. Quer que eu faça o deploy?` |
 | `tags` | Shortcode do emoji. O ntfy mostra o emoji antes do título | `["white_check_mark"]` |
@@ -183,12 +183,13 @@ A duração fica desconhecida se o plugin foi instalado no meio da sessão.
 
 ### 5.1 Opções do plugin (`userConfig`)
 
-O Claude Code pergunta estes valores ao ativar o plugin. Também dá para mudar com `/config` ou `claude plugin configure toc@toc`.
+O Claude Code pergunta estes valores ao ativar o plugin. Também dá para mudar com `/plugin configure toc@toc`. As opções **sensíveis** ficam no cofre de credenciais do sistema, não no `settings.json`, e não aparecem nas linhas do `/config`. Mesmo assim, o Claude Code as exporta para os hooks (testado).
 
 | Chave | Tipo | Padrão | Descrição |
 |---|---|---|---|
-| `ntfy_topic` | string | — (obrigatório) | Nome do tópico. Use algo aleatório |
+| `ntfy_topic` | string, sensível | — (obrigatório) | Nome do tópico. Só letras sem acento, números, `-` e `_` (até 64). Use algo aleatório |
 | `ntfy_server` | string | `https://ntfy.sh` | Servidor ntfy |
+| `ntfy_token` | string, sensível | vazio | Token de acesso (`tk_...`), enviado como `Authorization: Bearer` |
 | `python_command` | string | vazio (automático) | Só se o Python 3.9+ tiver outro nome |
 | `device_name` | string | vazio (hostname) | Apelido do computador |
 | `language` | string | `pt` | `pt` ou `en` |
@@ -260,12 +261,23 @@ Cada comando pede ao Claude para rodar `sh "${CLAUDE_PLUGIN_ROOT}/scripts/run.sh
 
 Este aviso aparece no README e na saída de `/toc:status` quando o horário silencioso está ativo.
 
-### 7.2 Privacidade 🔒
+### 7.2 Segurança e privacidade 🔒
 
-- O servidor público `ntfy.sh` não pede senha. **Quem souber o nome do tópico lê seus avisos.**
-- Use um tópico longo e aleatório. Exemplo: `toc-joao-8f3k2m9q`.
-- O resumo envia parte da resposta do Claude ao servidor. Pode conter nome de arquivo, trecho de código ou dado do projeto.
-- Para mais privacidade: desligue `include_summary`, ou use um servidor ntfy próprio em `ntfy_server`.
+**Modelo de ameaça.** O tópico é a única proteção no servidor público: quem souber o nome lê e envia avisos. Um tópico como `joao` colide com outras pessoas.
+
+| Risco | Proteção no plugin | Recomendação ao usuário |
+|---|---|---|
+| Tópico adivinhável | `/toc:status` e `/toc:test` avisam se o tópico tem menos de 16 caracteres ou nenhum número (exceto com token) | Gerar com `python -c "import secrets; print('toc-' + secrets.token_hex(8))"` |
+| Tópico inválido (ex.: com acento) | O hook não envia e grava no log; `/toc:test` mostra o erro | Só `A-Z a-z 0-9 - _` |
+| Tópico compartilhado ou exposto | Opção `ntfy_token` → `Authorization: Bearer tk_...` | Servidor próprio ou tópico reservado no ntfy.sh |
+| Segredos no texto enviado | `redact_secrets` troca por `[•••]`: chaves `sk-`, `ghp_`/`github_pat_`, `AKIA`, `xox*-`, `AIza`, `tk_`, JWT, chaves privadas PEM, `senha=`/`token:`/`api_key=`, `Bearer`/`Basic`, URLs `usuario:senha@` | `include_summary: false` para não enviar texto |
+| Tópico e token no disco | Opções sensíveis no cofre do sistema. Pasta de dados `0700`, arquivos `0600` | — |
+| Rede sem criptografia | Aviso para `http://` fora de `localhost` | Usar `https://` |
+| Hook travar ou mudar o Claude | Hooks assíncronos, sempre `exit 0`, nada no stdout | — |
+| Injeção de comando | O comando do hook só usa `${CLAUDE_PLUGIN_ROOT}` entre aspas. Nenhuma opção do usuário entra na linha de comando. `session_id` é sanitizado antes de virar nome de arquivo | — |
+| CI | Token do GitHub Actions só de leitura (`contents: read`) | — |
+
+O filtro de segredos é uma rede de proteção, não uma garantia.
 
 ### 7.3 Push nativo
 
@@ -401,7 +413,7 @@ Rodado no Claude Code 2.1.325 real, com o plugin instalado pelo marketplace loca
 
 ## 10. Plano de testes
 
-### 10.1 Testes automáticos (`unittest`, 36 casos)
+### 10.1 Testes automáticos (`unittest`, 45 casos)
 
 | Área | Casos |
 |---|---|
@@ -436,7 +448,6 @@ Rodado no Claude Code 2.1.325 real, com o plugin instalado pelo marketplace loca
 
 - Tocar na notificação abre o repositório no GitHub (campo `click` do ntfy).
 - Pausa com duração (`/toc:off 2h`).
-- Token de acesso para servidores ntfy com senha.
 - Fila do horário silencioso com resumo às 07:00.
 - Telegram e Discord como canais alternativos.
 - Suporte a Windows sem Git Bash (lançador em PowerShell).

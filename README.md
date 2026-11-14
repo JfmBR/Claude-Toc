@@ -22,12 +22,18 @@ Notifications go through [ntfy](https://ntfy.sh), a free push app that needs no 
 
 ## Install
 
-**1. Phone.** Install the **ntfy** app ([Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy) · [iOS](https://apps.apple.com/app/ntfy/id1625396347)) and subscribe to a topic with a long, random name, such as `toc-yourname-8f3k2m9q`.
+**1. Phone.** Install the **ntfy** app ([Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy) · [iOS](https://apps.apple.com/app/ntfy/id1625396347)) and subscribe to a topic with a **random** name. Generate one with:
+
+```bash
+python -c "import secrets; print('toc-' + secrets.token_hex(8))"
+```
+
+Don't use your name or a word: on the public server, **anyone who subscribes to the same topic reads your notifications**.
 
 **2. Claude Code.** In your terminal:
 
 ```bash
-claude plugin install toc --marketplace JfmBR/Claude-Toc --config ntfy_topic=toc-yourname-8f3k2m9q
+claude plugin install toc --marketplace JfmBR/Claude-Toc --config ntfy_topic=YOUR-RANDOM-TOPIC
 ```
 
 Or inside Claude Code:
@@ -73,12 +79,13 @@ These commands never trigger a notification themselves.
 
 ## Options
 
-Change them with `/config` in Claude Code, or with `claude plugin configure toc@toc`.
+Change them with `/plugin configure toc@toc` in Claude Code, or `/config` for the non-secret ones. The topic and the token are stored in your system's credential store, not in `settings.json`.
 
 | Option | Default | What it does |
 |---|---|---|
 | `ntfy_topic` | — (required) | Topic your phone subscribes to |
 | `ntfy_server` | `https://ntfy.sh` | Your own ntfy server, if you have one |
+| `ntfy_token` | empty | Access token (`tk_...`) for a protected topic |
 | `device_name` | hostname | Computer nickname, such as `Notebook` or `PC` |
 | `language` | `pt` | Notification language: `pt` or `en` |
 | `min_duration_seconds` | `0` | Skip ✅ and ❓ for turns shorter than this. 🔐 and ❌ always go out |
@@ -91,11 +98,19 @@ Change them with `/config` in Claude Code, or with `claude plugin configure toc@
 
 During quiet hours **no notification is sent, not even questions or permission requests.** If Claude asks for something in that window, it waits, and you are **not** told. The notification is discarded, not queued. `/toc:status` shows this warning while quiet hours are active.
 
-### 🔒 Privacy
+### 🔒 Security and privacy
 
-- The public `ntfy.sh` server has no password. **Anyone who knows your topic can read your notifications.** Use a long, random topic.
-- The summary sends part of Claude's reply to the ntfy server. It can include file names, code or project details.
-- For more privacy, set `include_summary` to `false`, or point `ntfy_server` at your own ntfy server.
+**The topic works like a password.** On the public `ntfy.sh` server, anyone who subscribes to your topic reads your notifications, and anyone can send messages to it. A topic like `joao` will collide with other people.
+
+| Risk | What Claude Toc does | What you can do |
+|---|---|---|
+| Someone guesses your topic | `/toc:status` and `/toc:test` warn when the topic is short or has no digits | Use a random topic (command above) |
+| Someone else uses the same topic | — | Use an access token: your own ntfy server, or a reserved topic on an ntfy.sh account, and set `ntfy_token` |
+| Secrets in Claude's reply | API keys, tokens, passwords, private keys and `user:pass@` URLs are replaced by `[•••]` before sending | Set `include_summary` to `false` to send no text at all |
+| Topic and token on disk | Stored in the system credential store. The plugin's own copy (`~/.claude/plugins/data/toc-toc/`) is readable only by you | Keep your user account private |
+| Unencrypted server | `/toc:status` warns about `http://` servers | Use `https://` |
+
+The secret filter is a safety net, not a guarantee: it catches common formats, not every secret.
 
 ## Requirements
 

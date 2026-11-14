@@ -22,12 +22,18 @@ Os avisos passam pelo [ntfy](https://ntfy.sh), um app de push grátis e sem cada
 
 ## Instalação
 
-**1. Celular.** Instale o app **ntfy** ([Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy) · [iOS](https://apps.apple.com/app/ntfy/id1625396347)) e assine um tópico com nome longo e aleatório, como `toc-seunome-8f3k2m9q`.
+**1. Celular.** Instale o app **ntfy** ([Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy) · [iOS](https://apps.apple.com/app/ntfy/id1625396347)) e assine um tópico com nome **aleatório**. Gere um com:
+
+```bash
+python -c "import secrets; print('toc-' + secrets.token_hex(8))"
+```
+
+Não use seu nome nem uma palavra: no servidor público, **quem assinar o mesmo tópico lê seus avisos**.
 
 **2. Claude Code.** No terminal:
 
 ```bash
-claude plugin install toc --marketplace JfmBR/Claude-Toc --config ntfy_topic=toc-seunome-8f3k2m9q
+claude plugin install toc --marketplace JfmBR/Claude-Toc --config ntfy_topic=SEU-TOPICO-ALEATORIO
 ```
 
 Ou dentro do Claude Code:
@@ -73,12 +79,13 @@ Esses comandos nunca geram aviso.
 
 ## Opções
 
-Altere com `/config` no Claude Code, ou com `claude plugin configure toc@toc`.
+Altere com `/plugin configure toc@toc` no Claude Code, ou com `/config` para as que não são secretas. O tópico e o token ficam no cofre de credenciais do sistema, não no `settings.json`.
 
 | Opção | Padrão | O que faz |
 |---|---|---|
 | `ntfy_topic` | — (obrigatória) | Tópico que o celular assina |
 | `ntfy_server` | `https://ntfy.sh` | Seu próprio servidor ntfy, se tiver |
+| `ntfy_token` | vazio | Token de acesso (`tk_...`) para um tópico protegido |
 | `device_name` | hostname | Apelido do computador, como `Notebook` ou `PC` |
 | `language` | `pt` | Idioma do aviso: `pt` ou `en` |
 | `min_duration_seconds` | `0` | Pula ✅ e ❓ em turnos mais curtos que isso. 🔐 e ❌ sempre saem |
@@ -91,11 +98,19 @@ Altere com `/config` no Claude Code, ou com `claude plugin configure toc@toc`.
 
 Durante o horário silencioso **nenhum aviso é enviado, nem perguntas nem pedidos de permissão.** Se o Claude pedir algo nesse horário, ele fica esperando e você **não** é avisado. A mensagem é descartada, não fica na fila. O `/toc:status` mostra esse aviso enquanto o horário silencioso está ativo.
 
-### 🔒 Privacidade
+### 🔒 Segurança e privacidade
 
-- O servidor público `ntfy.sh` não tem senha. **Quem souber o seu tópico lê seus avisos.** Use um tópico longo e aleatório.
-- O resumo envia parte da resposta do Claude ao servidor do ntfy. Pode conter nome de arquivo, código ou dado do projeto.
-- Para mais privacidade, coloque `include_summary` em `false`, ou aponte `ntfy_server` para um servidor ntfy próprio.
+**O tópico funciona como uma senha.** No servidor público `ntfy.sh`, quem assinar o seu tópico lê seus avisos, e qualquer um pode mandar mensagens para ele. Um tópico como `joao` vai colidir com outras pessoas.
+
+| Risco | O que o Claude Toc faz | O que você pode fazer |
+|---|---|---|
+| Alguém adivinhar seu tópico | `/toc:status` e `/toc:test` avisam quando o tópico é curto ou não tem números | Use um tópico aleatório (comando acima) |
+| Outra pessoa usar o mesmo tópico | — | Use um token de acesso: servidor ntfy próprio, ou tópico reservado numa conta do ntfy.sh, e preencha `ntfy_token` |
+| Segredos na resposta do Claude | Chaves de API, tokens, senhas, chaves privadas e URLs com `usuario:senha@` viram `[•••]` antes do envio | Coloque `include_summary` em `false` para não enviar texto nenhum |
+| Tópico e token no disco | Ficam no cofre de credenciais do sistema. A cópia do plugin (`~/.claude/plugins/data/toc-toc/`) só você consegue ler | Mantenha sua conta de usuário protegida |
+| Servidor sem criptografia | `/toc:status` avisa sobre servidores `http://` | Use `https://` |
+
+O filtro de segredos é uma rede de proteção, não uma garantia: ele pega os formatos comuns, não todo segredo possível.
 
 ## Requisitos
 

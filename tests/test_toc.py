@@ -211,6 +211,64 @@ class DecideTest(unittest.TestCase):
                                     True, self.noon, 5), ("finished", ""))
 
 
+class SecurityTest(unittest.TestCase):
+    def test_redacts_common_secrets(self):
+        samples = [
+            "token=abc123secret",
+            'curl -H "Authorization: Bearer tk_AgQdq7mVBoFD37zQVN29RhuMzNIz2"',
+            "chave sk-ant-api03-AAAAAAAAAAAAAAAAAAAA",
+            "ghp_0123456789abcdefghij0123456789",
+            "https://joao:minhasenha@github.com/x",
+            'PASSWORD = "hunter22"',
+            "AKIAABCDEFGHIJKLMNOP",
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----",
+        ]
+        for sample in samples:
+            redacted = toc.redact_secrets(sample)
+            self.assertIn(toc.REDACTED, redacted, sample)
+        for secret in ("abc123secret", "tk_AgQd", "sk-ant", "ghp_", "minhasenha",
+                       "hunter22", "AKIA", "MIIE"):
+            self.assertNotIn(secret, " ".join(toc.redact_secrets(x) for x in samples))
+
+    def test_keeps_normal_text(self):
+        text = "Corrigi o fluxo de password reset e contei os tokens do modelo."
+        self.assertEqual(toc.redact_secrets(text), text)
+
+    def test_notification_detail_is_redacted(self):
+        payload = toc.build_notification(cfg(), "permission", "", None,
+                                         "Rodar: export API_KEY=sk-123456789012345678901")
+        self.assertNotIn("sk-1234", payload["message"])
+
+    def test_topic_checks(self):
+        self.assertFalse(toc.is_valid_topic("João"))
+        self.assertFalse(toc.is_valid_topic("a b"))
+        self.assertTrue(toc.is_valid_topic("toc-3f9a1c7e5b2d4f60"))
+        self.assertTrue(toc.is_weak_topic("joao"))
+        self.assertTrue(toc.is_weak_topic("meutopicosecreto"))
+        self.assertFalse(toc.is_weak_topic("toc-3f9a1c7e5b2d4f60"))
+
+    def test_insecure_server(self):
+        self.assertTrue(toc.is_insecure_server("http://ntfy.example.com"))
+        self.assertFalse(toc.is_insecure_server("https://ntfy.sh"))
+        self.assertFalse(toc.is_insecure_server("http://127.0.0.1:8080"))
+
+    def test_status_warns_about_weak_topic(self):
+        lines = toc.status_lines(cfg(ntfy_topic="joao"), tempfile.mkdtemp(),
+                                 datetime(2026, 11, 14, 12, 0))
+        self.assertTrue(any("fácil de adivinhar" in line for line in lines))
+        lines = toc.status_lines(cfg(ntfy_topic="joao", ntfy_token="tk_x"), tempfile.mkdtemp(),
+                                 datetime(2026, 11, 14, 12, 0))
+        self.assertFalse(any("fácil de adivinhar" in line for line in lines))
+
+    @unittest.skipIf(os.name == "nt", "POSIX permissions")
+    def test_private_files(self):
+        folder = os.path.join(tempfile.mkdtemp(), "data")
+        toc.data_dir(folder)
+        toc.set_enabled(folder, True)
+        self.assertEqual(os.stat(folder).st_mode & 0o777, 0o700)
+        self.assertEqual(os.stat(os.path.join(folder, "state.json")).st_mode & 0o777, 0o600)
+
+
 class NotificationTest(unittest.TestCase):
     def test_payload(self):
         payload = toc.build_notification(cfg(device_name="NOTEBOOK"), "finished",
@@ -227,10 +285,12 @@ class NotificationTest(unittest.TestCase):
 
 class _Collector(http.server.BaseHTTPRequestHandler):
     received = []
+    auth = []
 
     def do_POST(self):  # noqa: N802
         length = int(self.headers.get("Content-Length", 0))
         _Collector.received.append(json.loads(self.rfile.read(length).decode("utf-8")))
+        _Collector.auth.append(self.headers.get("Authorization"))
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"{}")
@@ -253,6 +313,7 @@ class EndToEndTest(unittest.TestCase):
 
     def setUp(self):
         _Collector.received = []
+        _Collector.auth = []
         self.data = tempfile.mkdtemp()
         self.project = tempfile.mkdtemp()
         os.makedirs(os.path.join(self.project, ".git"))
@@ -262,7 +323,7 @@ class EndToEndTest(unittest.TestCase):
                 del self.env[key]
         self.env.update({
             "CLAUDE_PLUGIN_DATA": self.data,
-            "CLAUDE_PLUGIN_OPTION_NTFY_TOPIC": "toc-test-topic",
+            "CLAUDE_PLUGIN_OPTION_NTFY_TOPIC": "toc-test-topic-0123",
             "CLAUDE_PLUGIN_OPTION_NTFY_SERVER": "http://127.0.0.1:{}".format(
                 self.server.server_address[1]),
             "CLAUDE_PLUGIN_OPTION_DEVICE_NAME": "PC",
@@ -288,7 +349,8 @@ class EndToEndTest(unittest.TestCase):
         self.assertEqual(stop.returncode, 0)
         self.assertEqual(len(_Collector.received), 1)
         sent = _Collector.received[0]
-        self.assertEqual(sent["topic"], "toc-test-topic")
+        self.assertEqual(sent["topic"], "toc-test-topic-0123")
+        self.assertIsNone(_Collector.auth[0])
         self.assertEqual(sent["title"], "Pergunta · " + os.path.basename(self.project))
         self.assertEqual(sent["tags"], ["question"])
         self.assertTrue(sent["message"].startswith("0 s · PC\n") or
@@ -302,6 +364,16 @@ class EndToEndTest(unittest.TestCase):
         self.run_toc("start", event={"session_id": "s4", "prompt": "corrige o /toc:x no README"})
         self.run_toc("stop", event={"session_id": "s4", "last_assistant_message": "ok"})
         self.assertEqual(len(_Collector.received), 1)
+
+    def test_access_token_header(self):
+        env = dict(self.env, CLAUDE_PLUGIN_OPTION_NTFY_TOKEN="tk_testtoken123")
+        self.run_toc("stop", event={"session_id": "s5", "last_assistant_message": "ok"}, env=env)
+        self.assertEqual(_Collector.auth, ["Bearer tk_testtoken123"])
+
+    def test_invalid_topic_is_not_sent(self):
+        env = dict(self.env, CLAUDE_PLUGIN_OPTION_NTFY_TOPIC="joão")
+        self.run_toc("stop", event={"session_id": "s6", "last_assistant_message": "ok"}, env=env)
+        self.assertEqual(_Collector.received, [])
 
     def test_hook_never_fails(self):
         env = dict(self.env, CLAUDE_PLUGIN_OPTION_NTFY_SERVER="http://127.0.0.1:9")
@@ -331,7 +403,7 @@ class EndToEndTest(unittest.TestCase):
         status = self.run_toc("status", "--data-dir", self.data, "--set", "language=en",
                               env=control_env)
         self.assertIn("State: on", status.stdout.decode("utf-8"))
-        self.assertIn("Topic: toc-…(14)", status.stdout.decode("utf-8"))
+        self.assertIn("Topic: toc-…(19)", status.stdout.decode("utf-8"))
 
     def test_status_warns_in_quiet_hours(self):
         now = datetime.now()

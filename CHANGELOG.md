@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [1.0.1] - 2026-11-14
 
+### Security
+
+- `ntfy_topic` and the new `ntfy_token` option are now *sensitive*: Claude Code keeps them in the system credential store instead of `settings.json`.
+- New `ntfy_token` option sends `Authorization: Bearer tk_...`, for your own ntfy server or a reserved ntfy.sh topic.
+- Text sent to ntfy goes through a secret filter: API keys, tokens, passwords, private keys and `user:pass@` URLs become `[•••]`.
+- `/toc:status` and `/toc:test` warn about guessable topics (short, no digits) and `http://` servers. Invalid topics (e.g. with accents) are refused.
+- Plugin data folder is `0700` and its files `0600`.
+- CI runs with a read-only GitHub token.
+- Docs explain how to generate a random topic, and no longer show a copyable example topic.
+
 ### Fixed
 
 - Questions written as plain text now arrive as ❓. Detection reads the last two paragraphs, so it catches a question followed by options, an emoji, or instructions such as "let me know" / "me diga qual". Version 1.0.0 only checked whether the reply's last character was `?`.

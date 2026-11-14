@@ -39,6 +39,7 @@ VERSION = "1.0.1"
 DEFAULTS = {
     "ntfy_topic": "",
     "ntfy_server": "https://ntfy.sh",
+    "ntfy_token": "",
     "device_name": "",
     "language": "pt",
     "min_duration_seconds": 0,
@@ -51,6 +52,10 @@ DEFAULTS = {
 NETWORK_TIMEOUT = 5          # seconds
 START_FILE_MAX_AGE = 24 * 3600
 LOG_MAX_BYTES = 100 * 1024
+
+# ntfy accepts letters, digits, "_" and "-", up to 64 characters.
+TOPIC_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+WEAK_TOPIC_MIN_LENGTH = 16
 
 HOOK_COMMANDS = ("start", "stop", "failure", "notify", "ask")
 CONTROL_COMMANDS = ("test", "on", "off", "status")
@@ -70,6 +75,16 @@ TEXTS = {
         "on": "Claude Toc ligado neste computador.",
         "off": "Claude Toc pausado neste computador. Use /toc:on para religar.",
         "no_topic": "Erro: nenhum tópico do ntfy configurado (opção ntfy_topic).",
+        "bad_topic": "Erro: o tópico só pode ter letras sem acento, números, - e _ (até 64).",
+        "weak_topic": (
+            "Atenção: seu tópico é fácil de adivinhar. Qualquer pessoa que assinar "
+            "o mesmo nome lê seus avisos. Use um nome longo e aleatório (16+ "
+            "caracteres, com números) ou um token de acesso (opção ntfy_token)."
+        ),
+        "insecure_server": "Atenção: o servidor usa http://, sem criptografia. Prefira https://.",
+        "status_token": "Token de acesso",
+        "token_set": "configurado",
+        "token_unset": "não configurado",
         "sent": "Notificação de teste enviada para o tópico {topic}.",
         "send_failed": "Falha ao enviar: {error}",
         "status_title": "Claude Toc v{version}",
@@ -117,6 +132,16 @@ TEXTS = {
         "on": "Claude Toc is on for this computer.",
         "off": "Claude Toc is paused on this computer. Use /toc:on to resume.",
         "no_topic": "Error: no ntfy topic configured (ntfy_topic option).",
+        "bad_topic": "Error: the topic may only have letters, digits, - and _ (up to 64).",
+        "weak_topic": (
+            "Warning: your topic is easy to guess. Anyone who subscribes to the "
+            "same name reads your notifications. Use a long random name (16+ "
+            "characters, with digits) or an access token (ntfy_token option)."
+        ),
+        "insecure_server": "Warning: the server uses http://, without encryption. Prefer https://.",
+        "status_token": "Access token",
+        "token_set": "set",
+        "token_unset": "not set",
         "sent": "Test notification sent to topic {topic}.",
         "send_failed": "Failed to send: {error}",
         "status_title": "Claude Toc v{version}",
@@ -319,6 +344,53 @@ def summarize_tail(text, limit):
     return "…" + tail
 
 
+_SECRET_PATTERNS = [
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)", re.S),
+    re.compile(r"\b(?:sk-ant-|sk-proj-|sk-)[A-Za-z0-9_-]{16,}"),
+    re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}"),
+    re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
+    re.compile(r"\bxox[abposr]-[A-Za-z0-9-]{10,}"),
+    re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
+    re.compile(r"\btk_[A-Za-z0-9]{20,}"),
+    re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
+]
+_SECRET_ASSIGNMENT = re.compile(
+    r"(?i)\b((?:api[_-]?key|access[_-]?key|secret|password|passwd|pwd|token|auth)"
+    r"[A-Za-z0-9_-]*\s*[:=]\s*)([\"']?)[^\s\"',;]{4,}\2")
+_BEARER = re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}")
+_URL_CREDENTIALS = re.compile(r"(\b[a-z][a-z0-9+.-]*://)[^/\s:@]+:[^/\s@]+@", re.I)
+REDACTED = "[•••]"
+
+
+def redact_secrets(text):
+    """Hide things that look like credentials before they leave the computer."""
+    if not text:
+        return text or ""
+    for pattern in _SECRET_PATTERNS:
+        text = pattern.sub(REDACTED, text)
+    text = _SECRET_ASSIGNMENT.sub(lambda m: m.group(1) + REDACTED, text)
+    text = _BEARER.sub(lambda m: m.group(1) + " " + REDACTED, text)
+    text = _URL_CREDENTIALS.sub(lambda m: m.group(1) + REDACTED + "@", text)
+    return text
+
+
+def is_valid_topic(topic):
+    return bool(TOPIC_RE.match(topic or ""))
+
+
+def is_weak_topic(topic):
+    """Short or without digits: likely guessable (a name, a word)."""
+    topic = topic or ""
+    return len(topic) < WEAK_TOPIC_MIN_LENGTH or not any(ch.isdigit() for ch in topic)
+
+
+def is_insecure_server(server):
+    server = (server or "").lower()
+    return server.startswith("http://") and not re.match(
+        r"http://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(/|$)", server)
+
+
 def find_project_name(cwd):
     """Name of the git root that contains cwd, else the name of cwd."""
     if not cwd:
@@ -382,7 +454,7 @@ def build_config(raw):
     values = dict(DEFAULTS)
     warnings = []
 
-    for key in ("ntfy_topic", "ntfy_server", "device_name"):
+    for key in ("ntfy_topic", "ntfy_server", "ntfy_token", "device_name"):
         if key in raw:
             values[key] = str(raw[key]).strip()
     values["ntfy_server"] = (values["ntfy_server"] or DEFAULTS["ntfy_server"]).rstrip("/")
@@ -429,7 +501,11 @@ def build_config(raw):
 def data_dir(explicit=None):
     path = explicit or os.environ.get("CLAUDE_PLUGIN_DATA") or os.path.join(
         os.path.expanduser("~"), ".claude-toc")
-    os.makedirs(path, exist_ok=True)
+    os.makedirs(path, mode=0o700, exist_ok=True)
+    try:
+        os.chmod(path, 0o700)  # only you can read it (no effect on Windows)
+    except OSError:
+        pass
     return path
 
 
@@ -443,9 +519,15 @@ def read_json(path, default):
 
 
 def write_json(path, value):
+    """Write a private (0600) JSON file atomically."""
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as handle:
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
         json.dump(value, handle, ensure_ascii=False, indent=2)
+    try:
+        os.chmod(tmp, 0o600)
+    except OSError:
+        pass
     os.replace(tmp, path)
 
 
@@ -474,7 +556,7 @@ def save_start(ddir, session_id, now, skip=False):
     if not sid:
         return
     folder = os.path.join(ddir, "starts")
-    os.makedirs(folder, exist_ok=True)
+    os.makedirs(folder, mode=0o700, exist_ok=True)
     write_json(os.path.join(folder, sid), {"time": now, "skip": bool(skip)})
 
 
@@ -538,6 +620,7 @@ def build_notification(cfg, kind, project, duration_seconds, detail):
     if project:
         title = "{} · {}".format(title, project)
 
+    detail = redact_secrets(detail)
     first_line = " · ".join(part for part in (
         format_duration(duration_seconds), device_label(cfg)) if part)
     lines = [line for line in (first_line, detail) if line]
@@ -550,13 +633,11 @@ def send(cfg, payload):
     body = dict(payload)
     body["topic"] = cfg["ntfy_topic"]
     data = json.dumps(body, ensure_ascii=False).encode("utf-8")
-    request = urllib.request.Request(
-        cfg["ntfy_server"],
-        data=data,
-        headers={"Content-Type": "application/json",
-                 "User-Agent": "claude-toc/" + VERSION},
-        method="POST",
-    )
+    headers = {"Content-Type": "application/json", "User-Agent": "claude-toc/" + VERSION}
+    if cfg["ntfy_token"]:
+        headers["Authorization"] = "Bearer " + cfg["ntfy_token"]
+    request = urllib.request.Request(cfg["ntfy_server"], data=data, headers=headers,
+                                     method="POST")
     with urllib.request.urlopen(request, timeout=NETWORK_TIMEOUT) as response:
         response.read()
 
@@ -632,6 +713,9 @@ def handle_hook(command, cfg, ddir, stdin_text):
     if not cfg["ntfy_topic"]:
         log(ddir, "no ntfy_topic configured; skipped {}".format(kind))
         return
+    if not is_valid_topic(cfg["ntfy_topic"]):
+        log(ddir, "invalid ntfy_topic (use letters, digits, - and _); skipped {}".format(kind))
+        return
 
     project = find_project_name(event.get("cwd") or os.getcwd())
     send(cfg, build_notification(cfg, kind, project, duration, detail))
@@ -649,6 +733,9 @@ def handle_control(command, cfg, ddir):
         if not cfg["ntfy_topic"]:
             out.append(cfg.text("no_topic"))
             return out, 1
+        if not is_valid_topic(cfg["ntfy_topic"]):
+            out.append(cfg.text("bad_topic"))
+            return out, 1
         payload = build_notification(cfg, "test", find_project_name(os.getcwd()),
                                      None, cfg.text("test_message"))
         try:
@@ -657,6 +744,7 @@ def handle_control(command, cfg, ddir):
             out.append(cfg.text("send_failed").format(error=exc))
             return out, 1
         out.append(cfg.text("sent").format(topic=mask_topic(cfg["ntfy_topic"])))
+        out.extend(security_warnings(cfg))
     elif command == "status":
         out.extend(status_lines(cfg, ddir, datetime.now()))
     for warning in cfg.warnings:
@@ -682,16 +770,33 @@ def status_lines(cfg, ddir, now_dt):
         "- {}: {}".format(t["status_state"], t["state_on"] if is_enabled(ddir) else t["state_off"]),
         "- {}: {}".format(t["status_topic"], mask_topic(cfg["ntfy_topic"])),
         "- {}: {}".format(t["status_server"], cfg["ntfy_server"]),
+        "- {}: {}".format(t["status_token"],
+                          t["token_set"] if cfg["ntfy_token"] else t["token_unset"]),
         "- {}: {}".format(t["status_device"], device_label(cfg)),
         "- {}: {}".format(t["status_language"], cfg.lang),
         "- {}: {} s".format(t["status_min"], cfg["min_duration_seconds"]),
         "- {}: {}".format(t["status_quiet"], quiet),
         "- {}: {}".format(t["status_summary"], summary),
     ]
+    warnings = security_warnings(cfg)
     if quiet_now:
+        warnings.append(t["quiet_warning"])
+    for warning in warnings:
         lines.append("")
-        lines.append(t["quiet_warning"])
+        lines.append(warning)
     return lines
+
+
+def security_warnings(cfg):
+    out = []
+    topic = cfg["ntfy_topic"]
+    if topic and not is_valid_topic(topic):
+        out.append(cfg.text("bad_topic"))
+    elif topic and is_weak_topic(topic) and not cfg["ntfy_token"]:
+        out.append(cfg.text("weak_topic"))
+    if is_insecure_server(cfg["ntfy_server"]):
+        out.append(cfg.text("insecure_server"))
+    return out
 
 
 # --------------------------------------------------------------------------

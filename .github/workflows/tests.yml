@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+# Read-only token: CI never needs to write to the repository.
+permissions:
+  contents: read
+
 jobs:
   unittest:
     name: ${{ matrix.os }} / Python ${{ matrix.python }}

@@ -21,14 +21,22 @@
     "ntfy_topic": {
       "type": "string",
       "title": "ntfy topic",
-      "description": "Topic your phone subscribes to in the ntfy app. Use a long random name: anyone who knows it can read your notifications. Use the same topic on all your computers.",
-      "required": true
+      "description": "Topic your phone subscribes to in the ntfy app. On the public server anyone who knows the name reads your notifications, so use a long random name, such as the output of: python -c \"import secrets; print('toc-' + secrets.token_hex(8))\". Use the same topic on all your computers.",
+      "required": true,
+      "sensitive": true
     },
     "ntfy_server": {
       "type": "string",
       "title": "ntfy server",
       "description": "ntfy server URL. Change it only if you run your own server.",
       "default": "https://ntfy.sh"
+    },
+    "ntfy_token": {
+      "type": "string",
+      "title": "ntfy access token (optional)",
+      "description": "Access token (tk_...) for a protected topic: your own ntfy server, or a reserved topic on an ntfy.sh account. Stored in the system credential store.",
+      "sensitive": true,
+      "default": ""
     },
     "python_command": {
       "type": "string",
