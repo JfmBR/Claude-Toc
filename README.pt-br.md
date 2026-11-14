@@ -48,7 +48,7 @@ Use o **mesmo tópico** em todos os seus computadores. O aviso mostra de qual co
 | Tipo | Quando | Prioridade | Segunda linha |
 |---|---|---|---|
 | ✅ Terminou | O Claude termina a resposta | normal | Final da resposta |
-| ❓ Pergunta | A resposta termina com `?`, ou o Claude abre uma pergunta de múltipla escolha | alta | A pergunta |
+| ❓ Pergunta | O fim da resposta pede algo a você, ou o Claude abre uma pergunta de múltipla escolha | alta | A pergunta |
 | 🔐 Precisa de permissão | Um pedido de permissão espera ~6 s sem você digitar | alta | O que o Claude quer rodar |
 | ❌ Parou com erro | O turno termina com erro da API | alta | O tipo do erro |
 
@@ -105,7 +105,7 @@ Durante o horário silencioso **nenhum aviso é enviado, nem perguntas nem pedid
 
 ## Limitações
 
-- **A detecção de pergunta é uma heurística.** Uma resposta que termina com um "Quer que eu faça X?" educado chega como ❓, não ✅.
+- **A detecção de pergunta é uma heurística.** Ela lê os dois últimos parágrafos da resposta. Um "Quer que eu faça X?" educado no final chega como ❓, não ✅.
 - **Sem aviso quando você aperta Esc.** O Claude Code não dispara o evento `Stop` numa interrupção. Isso é proposital: você está no computador.
 - **Execuções sem interface (`claude -p`) não avisam.** Os hooks de aviso rodam em segundo plano, e o Claude Code cancela esses hooks quando um `-p` termina.
 - **Push nativo.** Se você também ligar o push do Remote Control no `/config` do Claude Code, recebe dois avisos. Use só um dos dois.

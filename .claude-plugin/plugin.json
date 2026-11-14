@@ -1,7 +1,7 @@
 {
   "name": "toc",
   "displayName": "Claude Toc",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Phone notifications (via ntfy) when Claude Code finishes a task, asks a question, needs permission or stops with an error.",
   "author": {
     "name": "João Francisco",

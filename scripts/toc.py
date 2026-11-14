@@ -30,7 +30,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 # --------------------------------------------------------------------------
 # Defaults and configuration
@@ -248,11 +248,61 @@ def strip_markdown(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
+_LIST_LINE = re.compile(r"^\s*(?:[-*+•]|\d+[.)]|[a-zA-Z][.)])\s+\S")
+_SENTENCE_END = re.compile(r"(?<=[.!?？…])\s+")
+_ANSWER_START = re.compile(r"^(porque|pois|because|resposta|answer)\b", re.I)
+_ASK_CUE = re.compile(
+    r"\b(?:me\s+(?:diga|diz|avise|avisa|conte|conta|fale|fala|responda|confirme|confirma)"
+    r"|responda\s+com|escolha\s+(?:uma|um|entre|a\s+op)"
+    r"|qual\s+(?:voc[eê]|vc)\s+prefere"
+    r"|let\s+me\s+know|tell\s+me\s+(?:which|what|if|whether)"
+    r"|reply\s+with|choose\s+(?:one|between|an?\s+option)|which\s+(?:one|do\s+you))\b",
+    re.I)
+QUESTION_TAIL_CHARS = 600
+
+
+def _trim_end(text):
+    """Drop trailing emoji, quotes and other symbols, keep . ! ? …"""
+    while text and not (text[-1].isalnum() or text[-1] in ".!?？…:;"):
+        text = text[:-1]
+    return text
+
+
+def _last_paragraphs(text, count=2):
+    """Last `count` paragraphs; a list joins the paragraph above it."""
+    raw = re.sub(r"```.*?```", "\n\n", text or "", flags=re.S)
+    blocks = [b for b in re.split(r"\n\s*\n", raw) if b.strip()]
+    merged = []
+    for block in blocks:
+        lines = [line for line in block.splitlines() if line.strip()]
+        if merged and lines and all(_LIST_LINE.match(line) for line in lines):
+            merged[-1] = merged[-1] + "\n" + block
+        else:
+            merged.append(block)
+    return merged[-count:]
+
+
 def is_question(text):
-    """Heuristic: the message ends with a question mark."""
-    clean = strip_markdown(text)
-    clean = clean.rstrip(" \t\n*_`)\"'”»")
-    return clean.endswith("?") or clean.endswith("？")
+    """Heuristic: does Claude's reply end by asking the user something?
+
+    Looks at the last two paragraphs (a list of options counts as part of
+    the paragraph above it). It is a question when a sentence there ends
+    with "?" and is not answered right away ("Why? Because..."), or when
+    it asks for a reply ("let me know", "me diga", "responda com"...).
+    """
+    tail = strip_markdown("\n\n".join(_last_paragraphs(text)))
+    tail = tail[-QUESTION_TAIL_CHARS:]
+    if not tail:
+        return False
+    if _ASK_CUE.search(tail):
+        return True
+    sentences = [x.strip() for x in _SENTENCE_END.split(tail) if x.strip()]
+    for index, sentence in enumerate(sentences):
+        if _trim_end(sentence).endswith(("?", "？")):
+            following = sentences[index + 1] if index + 1 < len(sentences) else ""
+            if not _ANSWER_START.match(following):
+                return True
+    return False
 
 
 def summarize_tail(text, limit):

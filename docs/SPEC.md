@@ -1,4 +1,4 @@
-# Claude Toc — Especificação v1.0.0
+# Claude Toc — Especificação v1.0.1
 
 > **Status:** implementada e validada no Claude Code 2.1.325
 > **Idioma:** português · [English](SPEC.en.md)
@@ -121,9 +121,12 @@ A primeira regra que bloquear encerra o fluxo.
 
 ### 3.4 Detecção de pergunta (heurística)
 
-- Pega `last_assistant_message` do evento `Stop`.
-- Remove markdown e espaços do fim.
-- Se o último caractere for `?` (ou `？`) → tipo ❓.
+- Pega os **dois últimos parágrafos** de `last_assistant_message`, sem blocos de código. Uma lista conta como parte do parágrafo acima dela (são as opções da pergunta).
+- É ❓ se, nesse trecho (no máximo 600 caracteres):
+  - uma frase termina com `?` e a frase seguinte não é a resposta ("Por quê? Porque…"); ou
+  - há um pedido de resposta: "me diga", "me avise", "responda com", "qual você prefere", "let me know", "reply with", "which one"…
+- Senão → ✅.
+- **Por que não só o último caractere:** no teste real, o Claude pergunta e depois explica como responder ("Qual você prefere? Se for X, me diga qual…"), ou lista opções depois da pergunta. A versão 1.0.0 olhava só o fim e marcava esses casos como ✅.
 - **Limitação:** o Claude às vezes termina com "Quer que eu faça X?" só por educação. Nesse caso o aviso vem como ❓. Isso é aceitável.
 
 ---
@@ -398,7 +401,7 @@ Rodado no Claude Code 2.1.325 real, com o plugin instalado pelo marketplace loca
 
 ## 10. Plano de testes
 
-### 10.1 Testes automáticos (`unittest`, 32 casos)
+### 10.1 Testes automáticos (`unittest`, 36 casos)
 
 | Área | Casos |
 |---|---|

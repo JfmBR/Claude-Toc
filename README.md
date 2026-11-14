@@ -48,7 +48,7 @@ Use the **same topic** on all your computers. The notification tells you which c
 | Type | When | Priority | Second line |
 |---|---|---|---|
 | ✅ Finished | Claude ends its reply | normal | End of Claude's reply |
-| ❓ Question | The reply ends with `?`, or Claude opens a multiple-choice question | high | The question |
+| ❓ Question | The end of the reply asks you something, or Claude opens a multiple-choice question | high | The question |
 | 🔐 Needs permission | A permission prompt waits about 6 s without you typing | high | What Claude wants to run |
 | ❌ Stopped with error | The turn ends with an API error | high | The error type |
 
@@ -105,7 +105,7 @@ During quiet hours **no notification is sent, not even questions or permission r
 
 ## Limitations
 
-- **Question detection is a heuristic.** A reply that ends with a polite "Want me to do X?" arrives as ❓, not ✅.
+- **Question detection is a heuristic.** It reads the last two paragraphs of the reply. A polite "Want me to do X?" at the end arrives as ❓, not ✅.
 - **No notification when you press Esc.** Claude Code doesn't fire the `Stop` event on an interrupt. That's on purpose: you are at the computer.
 - **Headless runs (`claude -p`) don't notify.** The notification hooks run in the background, and Claude Code cancels background hooks when a `-p` run exits.
 - **Native push.** If you also turn on Claude Code's own Remote Control push in `/config`, you get two notifications. Use one or the other.

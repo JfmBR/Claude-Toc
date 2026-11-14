@@ -62,6 +62,34 @@ class QuestionTest(unittest.TestCase):
         self.assertFalse(toc.is_question("Pronto, os testes passaram."))
         self.assertFalse(toc.is_question(""))
 
+    def test_question_followed_by_options(self):
+        self.assertTrue(toc.is_question(
+            "Posso seguir de dois jeitos.\n\nQual linguagem você prefere?\n\n"
+            "- **Python**\n- **JavaScript**\n- Outra"))
+        self.assertTrue(toc.is_question("Qual opção?\n1. Rápida\n2. Completa"))
+
+    def test_question_followed_by_emoji_or_short_sentence(self):
+        self.assertTrue(toc.is_question("Qual linguagem você prefere? 😊"))
+        self.assertTrue(toc.is_question("Qual linguagem você prefere? Me conta!"))
+        self.assertTrue(toc.is_question("Which one do you prefer?\n\n```\ncode\n```"))
+
+    def test_real_claude_replies(self):
+        self.assertTrue(toc.is_question(
+            "Qual linguagem você prefere? Se for de programação, me diga qual "
+            "(Python, Java...). Se for o idioma, me diga também (português...)."))
+        self.assertTrue(toc.is_question(
+            "Qual linguagem de programação você prefere?\n\n1. **Python**\n"
+            "2. **JavaScript / TypeScript**\n3. **Java**\n\n"
+            "Responda com o número ou o nome. Se preferir outra, é só dizer."))
+        self.assertTrue(toc.is_question("Done. Let me know which approach you want."))
+
+    def test_not_a_question(self):
+        self.assertFalse(toc.is_question("Por que falhou? Porque faltava um import. Corrigi."))
+        self.assertFalse(toc.is_question("Pronto, terminei.\n\n(Só para constar: não executei nada.)"))
+        self.assertFalse(toc.is_question("Pronto. Criei:\n- ola.txt\n- README.md"))
+        self.assertFalse(toc.is_question("Por que dá? Porque sim.\n\nTudo feito.\n\nArquivos salvos."))
+        self.assertFalse(toc.is_question("Criei o arquivo ola.txt com o conteúdo oi."))
+
 
 class SummaryTest(unittest.TestCase):
     def test_short_text_kept(self):

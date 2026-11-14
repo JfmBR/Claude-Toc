@@ -1,4 +1,4 @@
-# Claude Toc — Specification v1.0.0
+# Claude Toc — Specification v1.0.1
 
 > **Status:** implemented and validated on Claude Code 2.1.325
 > **Language:** English · [Português](SPEC.md)
@@ -121,9 +121,12 @@ The first rule that blocks ends the flow.
 
 ### 3.4 Question detection (heuristic)
 
-- Take `last_assistant_message` from the `Stop` event.
-- Strip markdown and trailing spaces.
-- If the last character is `?` (or `？`) → type ❓.
+- Take the **last two paragraphs** of `last_assistant_message`, without code blocks. A list counts as part of the paragraph above it (they are the question's options).
+- It's ❓ if, in that part (600 characters at most):
+  - a sentence ends with `?` and the next sentence isn't its answer ("Why? Because…"); or
+  - there's a request for a reply: "let me know", "reply with", "which one", "me diga", "responda com"…
+- Otherwise → ✅.
+- **Why not just the last character:** in real tests Claude asks and then explains how to answer ("Which do you prefer? If X, tell me which…"), or lists options after the question. Version 1.0.0 only checked the end and marked these as ✅.
 - **Limitation:** Claude sometimes ends with a polite "Want me to do X?". That arrives as ❓. This is acceptable.
 
 ---
@@ -398,7 +401,7 @@ Run on a real Claude Code 2.1.325, with the plugin installed from a local market
 
 ## 10. Test plan
 
-### 10.1 Automated tests (`unittest`, 32 cases)
+### 10.1 Automated tests (`unittest`, 36 cases)
 
 | Area | Cases |
 |---|---|
