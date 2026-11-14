@@ -1,0 +1,85 @@
+{
+  "name": "toc",
+  "displayName": "Claude Toc",
+  "version": "1.0.0",
+  "description": "Phone notifications (via ntfy) when Claude Code finishes a task, asks a question, needs permission or stops with an error.",
+  "author": {
+    "name": "João Francisco",
+    "url": "https://github.com/JfmBR"
+  },
+  "homepage": "https://github.com/JfmBR/Claude-Toc",
+  "repository": "https://github.com/JfmBR/Claude-Toc",
+  "license": "MIT",
+  "keywords": [
+    "notifications",
+    "ntfy",
+    "push",
+    "hooks",
+    "mobile"
+  ],
+  "userConfig": {
+    "ntfy_topic": {
+      "type": "string",
+      "title": "ntfy topic",
+      "description": "Topic your phone subscribes to in the ntfy app. Use a long random name: anyone who knows it can read your notifications. Use the same topic on all your computers.",
+      "required": true
+    },
+    "ntfy_server": {
+      "type": "string",
+      "title": "ntfy server",
+      "description": "ntfy server URL. Change it only if you run your own server.",
+      "default": "https://ntfy.sh"
+    },
+    "python_command": {
+      "type": "string",
+      "title": "Python command (optional)",
+      "description": "Leave empty to detect it automatically (python3, python, py). Set it only if Python 3.9+ has another name on this computer.",
+      "default": ""
+    },
+    "device_name": {
+      "type": "string",
+      "title": "Computer nickname",
+      "description": "Name shown in the notification, such as Notebook or PC. Leave empty to use the hostname.",
+      "default": ""
+    },
+    "language": {
+      "type": "string",
+      "title": "Notification language",
+      "description": "pt (Portuguese) or en (English).",
+      "default": "pt"
+    },
+    "min_duration_seconds": {
+      "type": "number",
+      "title": "Minimum duration (seconds)",
+      "description": "Skip 'finished' and 'question' notifications for turns shorter than this. 0 = always notify. Permission and error notifications ignore it.",
+      "default": 0,
+      "min": 0
+    },
+    "quiet_start": {
+      "type": "string",
+      "title": "Quiet hours start (HH:MM)",
+      "description": "No notification at all is sent during quiet hours, not even questions or permission requests. Same start and end = quiet hours off.",
+      "default": "23:00"
+    },
+    "quiet_end": {
+      "type": "string",
+      "title": "Quiet hours end (HH:MM)",
+      "description": "End of quiet hours, in this computer's local time.",
+      "default": "07:00"
+    },
+    "include_summary": {
+      "type": "boolean",
+      "title": "Include summary",
+      "description": "Send the end of Claude's last reply in the notification. Turn off to keep Claude's text out of the ntfy server.",
+      "default": true
+    },
+    "summary_length": {
+      "type": "number",
+      "title": "Summary length",
+      "description": "Maximum number of characters of the summary.",
+      "default": 150,
+      "min": 20,
+      "max": 1000
+    }
+  }
+}

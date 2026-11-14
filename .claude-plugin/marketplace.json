@@ -1,0 +1,17 @@
+{
+  "name": "toc",
+  "owner": {
+    "name": "João Francisco",
+    "url": "https://github.com/JfmBR"
+  },
+  "metadata": {
+    "description": "Claude Toc: phone notifications for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "toc",
+      "source": "./",
+      "description": "Phone notifications (via ntfy) when Claude Code finishes a task, asks a question, needs permission or stops with an error."
+    }
+  ]
+}
