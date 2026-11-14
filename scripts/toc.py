@@ -708,11 +708,12 @@ def main(argv=None):
         snapshot = read_json(os.path.join(ddir, "config.json"), {})
         cfg = build_config(raw_options(overrides, os.environ, snapshot))
         lines, code = handle_control(command, cfg, ddir)
+        # Always UTF-8: on Windows a piped stdout defaults to cp1252,
+        # which garbles accents in the Bash tool's output.
         output = "\n".join(lines) + "\n"
-        try:
-            sys.stdout.write(output)
-        except UnicodeEncodeError:
-            sys.stdout.buffer.write(output.encode("utf-8"))
+        sys.stdout.flush()
+        sys.stdout.buffer.write(output.encode("utf-8"))
+        sys.stdout.buffer.flush()
         return code
 
     sys.stderr.write("usage: toc.py {" + ",".join(HOOK_COMMANDS + CONTROL_COMMANDS) + "}\n")
