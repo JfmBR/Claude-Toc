@@ -25,7 +25,7 @@ Notifications go through [ntfy](https://ntfy.sh), a free push app that needs no 
 **1. Phone.** Install the **ntfy** app ([Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy) · [iOS](https://apps.apple.com/app/ntfy/id1625396347)) and subscribe to a topic with a **random** name. Generate one with:
 
 ```bash
-python -c "import secrets; print('toc-' + secrets.token_hex(8))"
+python -c "import secrets; print('toc-' + secrets.token_hex(16))"
 ```
 
 Don't use your name or a word: on the public server, **anyone who subscribes to the same topic reads your notifications**.

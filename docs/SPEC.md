@@ -267,7 +267,7 @@ Este aviso aparece no README e na saída de `/toc:status` quando o horário sile
 
 | Risco | Proteção no plugin | Recomendação ao usuário |
 |---|---|---|
-| Tópico adivinhável | `/toc:status` e `/toc:test` avisam se o tópico tem menos de 16 caracteres ou nenhum número (exceto com token) | Gerar com `python -c "import secrets; print('toc-' + secrets.token_hex(8))"` |
+| Tópico adivinhável | `/toc:status` e `/toc:test` avisam se o tópico tem menos de 16 caracteres ou nenhum número (exceto com token) | Gerar com `python -c "import secrets; print('toc-' + secrets.token_hex(16))"` |
 | Tópico inválido (ex.: com acento) | O hook não envia e grava no log; `/toc:test` mostra o erro | Só `A-Z a-z 0-9 - _` |
 | Tópico compartilhado ou exposto | Opção `ntfy_token` → `Authorization: Bearer tk_...` | Servidor próprio ou tópico reservado no ntfy.sh |
 | Segredos no texto enviado | `redact_secrets` troca por `[•••]`: chaves `sk-`, `ghp_`/`github_pat_`, `AKIA`, `xox*-`, `AIza`, `tk_`, JWT, chaves privadas PEM, `senha=`/`token:`/`api_key=`, `Bearer`/`Basic`, URLs `usuario:senha@` | `include_summary: false` para não enviar texto |

@@ -267,7 +267,7 @@ This warning appears in the README and in `/toc:status` output while quiet hours
 
 | Risk | Protection in the plugin | Advice to the user |
 |---|---|---|
-| Guessable topic | `/toc:status` and `/toc:test` warn when the topic is under 16 characters or has no digit (unless a token is set) | Generate it with `python -c "import secrets; print('toc-' + secrets.token_hex(8))"` |
+| Guessable topic | `/toc:status` and `/toc:test` warn when the topic is under 16 characters or has no digit (unless a token is set) | Generate it with `python -c "import secrets; print('toc-' + secrets.token_hex(16))"` |
 | Invalid topic (e.g. accents) | The hook doesn't send and logs it; `/toc:test` shows the error | Only `A-Z a-z 0-9 - _` |
 | Shared or exposed topic | `ntfy_token` option → `Authorization: Bearer tk_...` | Own server, or a reserved topic on ntfy.sh |
 | Secrets in sent text | `redact_secrets` replaces them with `[•••]`: `sk-`, `ghp_`/`github_pat_`, `AKIA`, `xox*-`, `AIza`, `tk_` keys, JWTs, PEM private keys, `password=`/`token:`/`api_key=`, `Bearer`/`Basic`, `user:pass@` URLs | `include_summary: false` to send no text |

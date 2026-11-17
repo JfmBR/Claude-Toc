@@ -3,6 +3,12 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Security
+
+- The suggested topic generator now uses `secrets.token_hex(16)` (32 hex characters, 128 bits) instead of `token_hex(8)` (64 bits), in the READMEs, the specs and the `ntfy_topic` option description.
+
 ## [1.0.1] - 2026-11-14
 
 ### Security
