@@ -21,7 +21,7 @@
     "ntfy_topic": {
       "type": "string",
       "title": "ntfy topic",
-      "description": "Topic your phone subscribes to in the ntfy app. On the public server anyone who knows the name reads your notifications, so use a long random name, such as the output of: python -c \"import secrets; print('toc-' + secrets.token_hex(8))\". Use the same topic on all your computers.",
+      "description": "Topic your phone subscribes to in the ntfy app. On the public server anyone who knows the name reads your notifications, so use a long random name, such as the output of: python -c \"import secrets; print('toc-' + secrets.token_hex(16))\". Use the same topic on all your computers.",
       "required": true,
       "sensitive": true
     },

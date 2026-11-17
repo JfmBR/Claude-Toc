@@ -25,7 +25,7 @@ Os avisos passam pelo [ntfy](https://ntfy.sh), um app de push grátis e sem cada
 **1. Celular.** Instale o app **ntfy** ([Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy) · [iOS](https://apps.apple.com/app/ntfy/id1625396347)) e assine um tópico com nome **aleatório**. Gere um com:
 
 ```bash
-python -c "import secrets; print('toc-' + secrets.token_hex(8))"
+python -c "import secrets; print('toc-' + secrets.token_hex(16))"
 ```
 
 Não use seu nome nem uma palavra: no servidor público, **quem assinar o mesmo tópico lê seus avisos**.
